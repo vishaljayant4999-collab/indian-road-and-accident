@@ -25,13 +25,13 @@ except Exception as e:
 # Title and description
 st.title("🚗 Indian Road Accident Severity Prediction App")
 st.markdown("""
-This app predicts the **Accident Severity** (*Minor*, *Major*, or *Fatal*) based on location, 
+This app predicts **Accident Severity** (*Minor*, *Major*, or *Fatal*) based on location, 
 environmental factors, road infrastructure, and collision parameters.
 """)
 
 st.write("---")
 
-# User Input Layout
+# Input layout across three columns
 col1, col2, col3 = st.columns(3)
 
 with col1:
@@ -91,38 +91,53 @@ with col3:
 
 st.write("---")
 
-# Prediction logic
+# Prediction Execution
 if st.button("Predict Accident Severity 🚨", type="primary"):
     
-    # Construct input feature array matching training feature order
-    input_features = np.array([[
-        city_map[city],
-        state_map[state],
-        latitude,
-        longitude,
-        hour,
-        is_weekend,
-        road_type_map[road_type],
-        lanes,
-        traffic_signal,
-        weather_map[weather],
-        visibility_map[visibility],
-        temperature,
-        cause_map[cause],
-        vehicles_involved,
-        casualties,
-        traffic_density_map[traffic_density],
-        is_peak_hour,
-        risk_score,
-        festival_map[festival],
-        day_map[day_of_week],
-        month,
-        year
-    ]])
+    # 1. Create input data dictionary matching potential dataset features
+    raw_input_data = {
+        'city': city_map[city],
+        'state': state_map[state],
+        'latitude': latitude,
+        'longitude': longitude,
+        'hour': hour,
+        'is_weekend': is_weekend,
+        'road_type': road_type_map[road_type],
+        'lanes': lanes,
+        'traffic_signal': traffic_signal,
+        'weather': weather_map[weather],
+        'visibility': visibility_map[visibility],
+        'temperature': temperature,
+        'cause': cause_map[cause],
+        'vehicles_involved': vehicles_involved,
+        'casualties': casualties,
+        'traffic_density': traffic_density_map[traffic_density],
+        'is_peak_hour': is_peak_hour,
+        'risk_score': risk_score,
+        'festival': festival_map[festival],
+        'day_of_week': day_map[day_of_week],
+        'month': month,
+        'year': year
+    }
     
-    prediction = model.predict(input_features)[0]
+    # 2. Build DataFrame
+    input_df = pd.DataFrame([raw_input_data])
     
-    severity_labels = {0: "Minor", 1: "Major", 2: "Fatal"}
+    # 3. Align DataFrame directly with trained model features
+    if hasattr(model, "feature_names_in_"):
+        expected_features = model.feature_names_in_
+        
+        # Add any missing expected columns with 0
+        for col in expected_features:
+            if col not in input_df.columns:
+                input_df[col] = 0
+                
+        # Reorder columns to match the exact order expected by the model
+        input_df = input_df[expected_features]
+    
+    # 4. Predict severity
+    prediction = model.predict(input_df)[0]
+    
     severity_colors = {0: "🟢 Minor", 1: "🟠 Major", 2: "🔴 Fatal"}
     
     st.subheader("Prediction Result:")
