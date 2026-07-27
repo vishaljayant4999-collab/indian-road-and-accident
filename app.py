@@ -1,23 +1,135 @@
 import streamlit as st
-import pickle
+import numpy as np
 import pandas as pd
+import pickle
 
-# Load model
-model = pickle.load(open("model.pkl", "rb"))
-columns = pickle.load(open("columns.pkl", "rb"))
+# Page configuration
+st.set_page_config(
+    page_title="Indian Road Accident Severity Predictor",
+    page_icon="🚗",
+    layout="wide"
+)
 
-st.title("Indian Road Accident Severity Prediction")
+# Load the trained model
+@st.cache_resource
+def load_model():
+    with open("model.pkl", "rb") as file:
+        model = pickle.load(file)
+    return model
 
-st.write("Enter accident details")
+try:
+    model = load_model()
+except Exception as e:
+    st.error("Error loading `model.pkl`. Make sure the file exists in the repository root directory.")
+    st.stop()
 
-input_data = {}
+# Title and description
+st.title("🚗 Indian Road Accident Severity Prediction App")
+st.markdown("""
+This app predicts the **Accident Severity** (*Minor*, *Major*, or *Fatal*) based on location, 
+environmental factors, road infrastructure, and collision parameters.
+""")
 
-for col in columns:
-    input_data[col] = st.number_input(col, value=0.0)
+st.write("---")
 
-df = pd.DataFrame([input_data])
+# User Input Layout
+col1, col2, col3 = st.columns(3)
 
-if st.button("Predict"):
-    prediction = model.predict(df)
+with col1:
+    st.subheader("📍 Location & Time Factors")
+    
+    city_map = {'Bangalore': 0, 'Chandigarh': 1, 'Chennai': 2, 'Delhi': 3, 'Hyderabad': 4, 'Kolkata': 5, 'Mumbai': 6, 'Pune': 7}
+    city = st.selectbox("City", list(city_map.keys()))
+    
+    state_map = {'Chandigarh': 0, 'Delhi': 1, 'Karnataka': 2, 'Maharashtra': 3, 'Tamil Nadu': 4, 'Telangana': 5, 'West Bengal': 6}
+    state = st.selectbox("State", list(state_map.keys()))
+    
+    latitude = st.number_input("Latitude", value=19.0760)
+    longitude = st.number_input("Longitude", value=72.8777)
+    
+    hour = st.slider("Hour of Day (0–23)", 0, 23, 12)
+    
+    day_map = {'Monday': 0, 'Tuesday': 1, 'Wednesday': 2, 'Thursday': 3, 'Friday': 4, 'Saturday': 5, 'Sunday': 6}
+    day_of_week = st.selectbox("Day of Week", list(day_map.keys()))
+    
+    is_weekend = st.selectbox("Is Weekend?", [0, 1], format_func=lambda x: "Yes" if x == 1 else "No")
+    is_peak_hour = st.selectbox("Is Peak Hour?", [0, 1], format_func=lambda x: "Yes" if x == 1 else "No")
 
-    st.success(f"Predicted Accident Severity: {prediction[0]}")
+with col2:
+    st.subheader("🛣️ Infrastructure & Environment")
+    
+    road_type_map = {'Highway': 0, 'Rural Road': 1, 'Urban Road': 2}
+    road_type = st.selectbox("Road Type", list(road_type_map.keys()))
+    
+    lanes = st.selectbox("Number of Lanes", [1, 2, 3, 4, 5, 6], index=1)
+    traffic_signal = st.selectbox("Traffic Signal Present?", [0, 1], format_func=lambda x: "Yes" if x == 1 else "No")
+    
+    weather_map = {'Clear': 0, 'Fog': 1, 'Rain': 2}
+    weather = st.selectbox("Weather Condition", list(weather_map.keys()))
+    
+    visibility_map = {'Low': 0, 'Medium': 1, 'High': 2}
+    visibility = st.selectbox("Visibility Level", list(visibility_map.keys()))
+    
+    traffic_density_map = {'Low': 0, 'Medium': 1, 'High': 2}
+    traffic_density = st.selectbox("Traffic Density", list(traffic_density_map.keys()))
+    
+    temperature = st.slider("Temperature (°C)", -5, 50, 28)
+
+with col3:
+    st.subheader("⚠️ Incident Impact Details")
+    
+    cause_map = {'Driver Distraction': 0, 'Drunk Driving': 1, 'Overspeeding': 2, 'Poor Road Infrastructure': 3, 'Severe Weather': 4}
+    cause = st.selectbox("Primary Cause", list(cause_map.keys()))
+    
+    festival_map = {'Diwali': 0, 'Eid': 1, 'Holi': 2, 'None': 3, 'New Year': 4}
+    festival = st.selectbox("Festival Period", list(festival_map.keys()))
+    
+    vehicles_involved = st.number_input("Vehicles Involved", min_value=1, max_value=10, value=2)
+    casualties = st.number_input("Number of Casualties", min_value=0, max_value=10, value=1)
+    risk_score = st.slider("Calculated Risk Score", 0.0, 100.0, 50.0)
+    month = st.slider("Month (1-12)", 1, 12, 6)
+    year = st.selectbox("Year", [2022, 2023, 2024, 2025])
+
+st.write("---")
+
+# Prediction logic
+if st.button("Predict Accident Severity 🚨", type="primary"):
+    
+    # Construct input feature array matching training feature order
+    input_features = np.array([[
+        city_map[city],
+        state_map[state],
+        latitude,
+        longitude,
+        hour,
+        is_weekend,
+        road_type_map[road_type],
+        lanes,
+        traffic_signal,
+        weather_map[weather],
+        visibility_map[visibility],
+        temperature,
+        cause_map[cause],
+        vehicles_involved,
+        casualties,
+        traffic_density_map[traffic_density],
+        is_peak_hour,
+        risk_score,
+        festival_map[festival],
+        day_map[day_of_week],
+        month,
+        year
+    ]])
+    
+    prediction = model.predict(input_features)[0]
+    
+    severity_labels = {0: "Minor", 1: "Major", 2: "Fatal"}
+    severity_colors = {0: "🟢 Minor", 1: "🟠 Major", 2: "🔴 Fatal"}
+    
+    st.subheader("Prediction Result:")
+    if prediction == 0:
+        st.success(f"Predicted Severity: **{severity_colors[prediction]}**")
+    elif prediction == 1:
+        st.warning(f"Predicted Severity: **{severity_colors[prediction]}**")
+    else:
+        st.error(f"Predicted Severity: **{severity_colors[prediction]}**")
