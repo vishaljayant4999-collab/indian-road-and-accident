@@ -11,6 +11,7 @@ st.set_page_config(
 )
 
 # Load the trained model
+# Load trained model
 @st.cache_resource
 def load_model():
     with open("model.pkl", "rb") as file:
@@ -20,7 +21,8 @@ def load_model():
 try:
     model = load_model()
 except Exception as e:
-    st.error("Error loading `model.pkl`. Make sure the file exists in the repository root directory.")
+    st.error(f"Failed to load model: {e}")
+    st.exception(e)
     st.stop()
 
 # Title and description
