@@ -1,7 +1,7 @@
 import streamlit as st
 import numpy as np
 import pandas as pd
-import pickle
+import joblib
 
 # Page configuration
 st.set_page_config(
@@ -10,13 +10,10 @@ st.set_page_config(
     layout="wide"
 )
 
-# Load the trained model
-# Load trained model
+# Load trained model using joblib
 @st.cache_resource
 def load_model():
-    with open("model.pkl", "rb") as file:
-        model = pickle.load(file)
-    return model
+    return joblib.load("model.pkl")
 
 try:
     model = load_model()
